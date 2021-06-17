@@ -1,0 +1,6 @@
+*.o
+*.tmp
+*.tar
+*.csim_results
+.marker
+.vscode
