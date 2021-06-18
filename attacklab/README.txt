@@ -26,3 +26,20 @@ can compile (use flag -Og) and disassemble it to look for gadgets.
 Utility program to generate byte sequences.  See documentation in lab
 handout.
 
+============================= Added for solutions ===========================
+Files:
+
+    phase1.txt phase2.txt phase3.txt
+
+Solutions for code injection attack, i.e., ctarget. Example Usage:
+
+    unix> cat phase1.txt | ./hex2raw | ./ctarget -q
+
+Files:
+
+    phase4.txt
+
+Solutions for return programming attack, i.e., rtarget. Example Usage:
+
+    unix> cat phase4.txt | ./hex2raw | ./rtarget -q
+
