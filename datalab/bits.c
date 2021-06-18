@@ -143,7 +143,7 @@ NOTES:
  *   Rating: 1
  */
 int bitXor(int x, int y) {
-  return 2;
+  return ~(~x & ~y) & ~(x & y);
 }
 /* 
  * tmin - return minimum two's complement integer 
@@ -152,9 +152,7 @@ int bitXor(int x, int y) {
  *   Rating: 1
  */
 int tmin(void) {
-
-  return 2;
-
+  return 0x1 << 31;
 }
 //2
 /*
@@ -165,7 +163,15 @@ int tmin(void) {
  *   Rating: 1
  */
 int isTmax(int x) {
-  return 2;
+/* TMax = 0x7FFFFFFF
+ * obviously we got ~((TMax << 1) + 1) = 0, but ~((TMin << 1) + 1) also equals to 0
+ * and << is illeagal, which could be replaced with x + x
+ * then the question would be how do we distinguish TMin and TMax
+ * TMax + 1 = TMin; TMin + 1 = 0
+ */
+  int flag1 = !~(x + x + 1); // 1 if x is TMin, TMax, otherwise 0
+  int flag2 = !(x + 1);      // 1 if x is TMin, other wise 0
+  return flag1 & !flag2;
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -176,7 +182,8 @@ int isTmax(int x) {
  *   Rating: 2
  */
 int allOddBits(int x) {
-  return 2;
+  int mask = 0xaa | 0xaa << 8 | 0xaa << 16 | 0xaa << 24;
+  return !((x & mask) ^ mask);
 }
 /* 
  * negate - return -x 
@@ -186,7 +193,7 @@ int allOddBits(int x) {
  *   Rating: 2
  */
 int negate(int x) {
-  return 2;
+  return (~x)+1;
 }
 //3
 /* 
@@ -199,7 +206,13 @@ int negate(int x) {
  *   Rating: 3
  */
 int isAsciiDigit(int x) {
-  return 2;
+  /*
+   * 0x30(00110000) ~ 0x39(00111001)
+   */
+  int flag1 = !((x >> 4) ^ 0x03); // 1 if 0x0000003x, 0 otherwise
+  int flag2_1 = !(x & 0x08);      // 1 if 4th bit 0, 0 otherwise
+  int flag2_2 = !(x & 0x06);
+  return flag1 & (flag2_1 | flag2_2);
 }
 /* 
  * conditional - same as x ? y : z 
@@ -209,7 +222,8 @@ int isAsciiDigit(int x) {
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
-  return 2;
+  x = (((!!x) << 31) >> 31);
+  return (x & y) | (~x & z);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -219,7 +233,19 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  return 2;
+  /*
+   * x <= y under 2 conditions:
+   * 1. x, y have different sign bit and x's sign bit is 1
+   * 2. x, y have same sign bit and y-x >= 0
+   *  - when x != TMin, y-x = ~x + 1 + y, if sign bit of y-x is 0, return 1; 1 otherwise;
+   *  - when x == TMin, ~x + 1 = x, so ~x + 1 + y = x + y, which would overflow, and sign bit would be 0
+   */
+  int xsign = (x >> 31) & 0x01;
+  int ysign = (y >> 31) & 0x01;
+  int diffSign = xsign ^ ysign; // diffSign = 1 if sign bits are different, or 0 otherwise
+  int flag1 = diffSign & xsign; // different sign & x's sign bit is 1
+  int flag2 = !diffSign & !((~x + 1 + y) >> 31);
+  return flag1 | flag2;
 }
 //4
 /* 
@@ -231,7 +257,24 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  return 2;
+  /*
+  lowbit16 = x >> 16 | x;
+  lowbit8 = lowbit16 >> 8 | lowbit8;
+  lowbit4 = lowbit8 >> 4 | lowbit8;
+  lowbit2 = lowbit4 >> 2 | lowbit4;
+  lowbit1 = lowbit2 >> 1 | lowbit2;
+  return lowbit1 & 0x01;
+  */
+  /*
+   * 1. x = 0, ~x + 1 = 0
+   * 2. x = TMin, ~x + 1 = TMin
+   * 3. x ≠ 0, x ≠ TMin, ~x + 1 = -x
+   * So, the conclusion above divide x | ~x+1 into 2 cases:
+   *     - x = 0, sign bit of x | ~x+1 = 0, return 1;
+   *     - x ≠ 0, sign bit of x | ~x+1 = 1, return 0;
+   */
+  return ((x | (~x + 1)) >> 31) + 1;
+
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -246,7 +289,28 @@ int logicalNeg(int x) {
  *  Rating: 4
  */
 int howManyBits(int x) {
-  return 0;
+  /* For positives, we find first 1 bit and plus 1;
+   * For negatives, we find first 0 bit and plus 1;
+   * So we ~ negatives only, and find first 1 bit and plus 1;
+   * The whole process is:
+   *  1. process the number: ~negatives
+   *  2. find the first bit being 1
+   *  3. output the wight of that bit we find above and plus 1
+   */
+  int flag1, flag2, flag3, flag4, flag5, flag6;
+  x = (x >> 31) ^ x;
+  flag1 = !!(x >> 16) << 4;
+  x = x >> flag1;
+  flag2 = !!(x >> 8) << 3;
+  x = x >> flag2;
+  flag3 = !!(x >> 4) << 2;
+  x = x >> flag3;
+  flag4 = !!(x >> 2) << 1;
+  x = x >> flag4;
+  flag5 = !!(x >> 1);
+  x = x >> flag5;
+  flag6 = x;
+  return flag1 + flag2 + flag3 + flag4 + flag5 + flag6 + 1;
 }
 //float
 /* 
@@ -261,7 +325,18 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  return 2;
+  int exp_mask = 0xFF << 23;
+  int exp_flip = ~exp_mask;
+  int sign = uf & 0x80000000;
+  int exp = (uf & exp_mask) >> 23;
+  if (exp == 0)
+    return sign | (uf << 1);
+  if (exp == 0xFF)
+    return uf;
+  exp++;
+  if (exp == 0xFF)
+    return sign | exp_mask;
+  return (uf & exp_flip) | (exp << 23);
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -276,7 +351,31 @@ unsigned floatScale2(unsigned uf) {
  *   Rating: 4
  */
 int floatFloat2Int(unsigned uf) {
-  return 2;
+  int exp = ((uf & 0xFF << 23) >> 23) - 127; // true exponent
+  int sig = (uf & 0x3fffff) | 0x800000;    // sig = 1xxx...x, x - 23 bits
+  int sign = (uf & 0x80000000);            // positive or negative
+
+  // the number now is actually
+  // s000...01.xxx...x(23 bits significand),
+  // where s is the sign bit, 000...0 is 0 of 30 bits, 
+
+  // if exp < 0, then the number would be in (-1, 1)
+  // which would be 0 if casted into int
+  if (exp < 0) return 0;
+
+  // if exp >= 31, then left shift would overflow
+  // which means the number would be inf
+  if (exp >= 31) return 0x80000000u;
+
+  // now the uf can be casted into int
+
+  // sig now is 1xxx...x rather than 1.xxx...x
+  // so the true value is sig * 2 ^ (exp - 23),
+  if (exp <= 23) sig >>= (23 - exp);
+  else sig <<= (exp - 23);
+  if(sign) return ~sig + 1;
+  else return sig;
+
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -292,5 +391,18 @@ int floatFloat2Int(unsigned uf) {
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
-    return 2;
+  // 2.0^x ange of different segments:
+    // denormalized: x < -126, exp < 1
+    //  - min: 0 00000000 00000000000000000000001 = 0x00000001 = 2 ^ (-149)
+    //  - max: 0 00000000 10000000000000000000000 = 0x00400000 = 2 ^ (-127)
+    // normalized: x in [-126, 127]
+    //  - min: 0 00000001 00000000000000000000000 = 0x80000000 = 2 ^ (-126)
+    //  - max: 0 11111110 00000000000000000000000 = 0x7f000000 = 2 ^ 127
+    // inf/NaN x > 127: return +inf = 0x7f800000
+    if(x > 127) return 0x7f800000;
+    else if(x < -126) {  // denormalized
+        if(x >= -149) return 0x01 << (149+x);
+        else return 0;
+    }
+    else return (x+127) << 23;
 }
