@@ -11,7 +11,35 @@
 #include "cachelab.h"
 
 int is_transpose(int M, int N, int A[N][M], int B[M][N]);
-
+void trans32x32(int A[32][32], int B[32][32]) {
+    /*
+     * s = 5, E = 1, b = 5
+     * 32 * 32: miss cnt < 300
+     */
+    int x1, x2, x3, x4, x5, x6, x7, x8;
+    for(int i = 0; i < 32; i+=8) {
+        for(int j = 0; j < 32; j += 8) {
+            for(int i1 = i; i1 < i + 8; i1++) {
+                x1 =   A[i1][j];
+                x2 = A[i1][j+1];
+                x3 = A[i1][j+2];
+                x4 = A[i1][j+3];
+                x5 = A[i1][j+4];
+                x6 = A[i1][j+5];
+                x7 = A[i1][j+6];
+                x8 = A[i1][j+7];
+                B[j][i1]   = x1;
+                B[j+1][i1] = x2;
+                B[j+2][i1] = x3;
+                B[j+3][i1] = x4;
+                B[j+4][i1] = x5;
+                B[j+5][i1] = x6;
+                B[j+6][i1] = x7;
+                B[j+7][i1] = x8;
+            }
+        }
+    }
+}
 /* 
  * transpose_submit - This is the solution transpose function that you
  *     will be graded on for Part B of the assignment. Do not change
@@ -20,8 +48,14 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N]);
  *     be graded. 
  */
 char transpose_submit_desc[] = "Transpose submission";
-void transpose_submit(int M, int N, int A[N][M], int B[M][N])
-{
+void transpose_submit(int M, int N, int A[N][M], int B[M][N]) {
+    /* M rows, N columns
+     * s = 5, E = 1, b = 5
+     * 32 * 32: miss cnt < 300
+     * 64 * 64: miss cnt < 1300
+     * 61 * 67: miss cnt < 2000
+     */
+    
 }
 
 /* 
@@ -39,6 +73,7 @@ void trans(int M, int N, int A[N][M], int B[M][N])
 
     for (i = 0; i < N; i++) {
         for (j = 0; j < M; j++) {
+            // B[j][i] = A[j][i]
             tmp = A[i][j];
             B[j][i] = tmp;
         }
