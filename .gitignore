@@ -4,3 +4,6 @@
 *.csim_results
 .marker
 .vscode
+csim
+tracegen
+test-trans
